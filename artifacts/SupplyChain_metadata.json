@@ -9,35 +9,16 @@
 				"anonymous": false,
 				"inputs": [
 					{
-						"indexed": false,
-						"internalType": "uint256",
+						"indexed": true,
+						"internalType": "string",
 						"name": "id",
-						"type": "uint256"
+						"type": "string"
 					},
 					{
 						"indexed": false,
 						"internalType": "string",
 						"name": "name",
 						"type": "string"
-					},
-					{
-						"indexed": false,
-						"internalType": "string",
-						"name": "origin",
-						"type": "string"
-					}
-				],
-				"name": "ProductCreated",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "id",
-						"type": "uint256"
 					},
 					{
 						"indexed": false,
@@ -48,8 +29,57 @@
 					{
 						"indexed": false,
 						"internalType": "string",
+						"name": "destination",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "company",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
 						"name": "status",
 						"type": "string"
+					}
+				],
+				"name": "ProductCreated",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "string",
+						"name": "id",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "newLocation",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "string",
+						"name": "newStatus",
+						"type": "string"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint256",
+						"name": "updatedAt",
+						"type": "uint256"
 					}
 				],
 				"name": "ProductUpdated",
@@ -58,9 +88,9 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256",
+						"internalType": "string",
 						"name": "_id",
-						"type": "uint256"
+						"type": "string"
 					},
 					{
 						"internalType": "string",
@@ -69,7 +99,27 @@
 					},
 					{
 						"internalType": "string",
-						"name": "_origin",
+						"name": "_location",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_destination",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_quantity",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "_company",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_notes",
 						"type": "string"
 					}
 				],
@@ -79,19 +129,32 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "getAllProductIds",
+				"outputs": [
+					{
+						"internalType": "string[]",
+						"name": "",
+						"type": "string[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
-						"internalType": "uint256",
+						"internalType": "string",
 						"name": "_id",
-						"type": "uint256"
+						"type": "string"
 					}
 				],
 				"name": "getProduct",
 				"outputs": [
 					{
-						"internalType": "uint256",
+						"internalType": "string",
 						"name": "id",
-						"type": "uint256"
+						"type": "string"
 					},
 					{
 						"internalType": "string",
@@ -100,12 +163,27 @@
 					},
 					{
 						"internalType": "string",
-						"name": "origin",
+						"name": "location",
 						"type": "string"
 					},
 					{
 						"internalType": "string",
-						"name": "currentLocation",
+						"name": "destination",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "quantity",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "company",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "notes",
 						"type": "string"
 					},
 					{
@@ -117,6 +195,24 @@
 						"internalType": "uint256",
 						"name": "createdAt",
 						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "updatedAt",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getProductCount",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -125,9 +221,9 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256",
+						"internalType": "string",
 						"name": "_id",
-						"type": "uint256"
+						"type": "string"
 					}
 				],
 				"name": "getProductHistoryCount",
@@ -144,9 +240,9 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256",
+						"internalType": "string",
 						"name": "_id",
-						"type": "uint256"
+						"type": "string"
 					},
 					{
 						"internalType": "uint256",
@@ -156,6 +252,11 @@
 				],
 				"name": "getProductHistoryItem",
 				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "time",
+						"type": "uint256"
+					},
 					{
 						"internalType": "string",
 						"name": "location",
@@ -167,14 +268,9 @@
 						"type": "string"
 					},
 					{
-						"internalType": "address",
-						"name": "updatedBy",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "timestamp",
-						"type": "uint256"
+						"internalType": "string",
+						"name": "desc",
+						"type": "string"
 					}
 				],
 				"stateMutability": "view",
@@ -183,46 +279,16 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
+						"internalType": "string",
+						"name": "_id",
+						"type": "string"
 					}
 				],
-				"name": "products",
+				"name": "productExists",
 				"outputs": [
 					{
-						"internalType": "uint256",
-						"name": "id",
-						"type": "uint256"
-					},
-					{
-						"internalType": "string",
-						"name": "name",
-						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "origin",
-						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "currentLocation",
-						"type": "string"
-					},
-					{
-						"internalType": "string",
-						"name": "status",
-						"type": "string"
-					},
-					{
-						"internalType": "uint256",
-						"name": "createdAt",
-						"type": "uint256"
-					},
-					{
 						"internalType": "bool",
-						"name": "exists",
+						"name": "",
 						"type": "bool"
 					}
 				],
@@ -232,18 +298,18 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint256",
-						"name": "_id",
-						"type": "uint256"
-					},
-					{
 						"internalType": "string",
-						"name": "_location",
+						"name": "_id",
 						"type": "string"
 					},
 					{
 						"internalType": "string",
-						"name": "_status",
+						"name": "_newLocation",
+						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "_newStatus",
 						"type": "string"
 					}
 				],
@@ -268,7 +334,7 @@
 		"compilationTarget": {
 			"contract/SupplyChain.sol": "SupplyChain"
 		},
-		"evmVersion": "london",
+		"evmVersion": "shanghai",
 		"libraries": {},
 		"metadata": {
 			"bytecodeHash": "ipfs"
@@ -281,10 +347,11 @@
 	},
 	"sources": {
 		"contract/SupplyChain.sol": {
-			"keccak256": "0x969775fc78e3366aca244d0bb7244f07b4b9f09151dda8f7eaa41ef5723608c1",
+			"keccak256": "0x2149b8660d63f0cbf1a9ef16af5a522eba620c90a609a14fd3565ecc37d9f864",
+			"license": "MIT",
 			"urls": [
-				"bzz-raw://7fff857b6ad0af303bd67a231f5fbf6d092c618b7236002ad29c35ce0f08deb7",
-				"dweb:/ipfs/QmSvz1UBM5FkQbLv7YgLwd6xNUBSfLfuHnSsYkKHGQvL3Q"
+				"bzz-raw://1ea4c1bc4ef11521c9b149fb92e0e558ed9db9ad76b9220196afbacc7e8fb2d5",
+				"dweb:/ipfs/QmPg19XaoNiJY24AjPjYMLhvTMwG8xpTiL9YXAdhawKn3Y"
 			]
 		}
 	},
