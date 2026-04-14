@@ -360,26 +360,32 @@
 
                   <!-- TRUCK group (animated) — faces right, origin→destination -->
                   <g id="truck-icon-group" filter="url(#shadow)">
-                    <!-- Truck body (cab on LEFT = front, faces right) -->
+                    <!-- Truck body -->
                     <rect x="0"  y="4"  width="36" height="20" rx="3" fill="#f59e0b"/>
-                    <!-- Cab section -->
-                    <rect x="0"  y="4"  width="13" height="20" rx="2" fill="#e08800"/>
-                    <!-- Windshield -->
-                    <rect x="1"  y="6"  width="9"  height="9"  rx="1" fill="rgba(200,235,255,.9)"/>
+
                     <!-- Cargo box stripes -->
-                    <rect x="15" y="7"  width="19" height="14" rx="1" fill="#fbbf24" opacity=".6"/>
-                    <line x1="20" y1="7" x2="20" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
-                    <line x1="25" y1="7" x2="25" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
-                    <line x1="30" y1="7" x2="30" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
+                    <rect x="2"  y="7"  width="19" height="14" rx="1" fill="#fbbf24" opacity=".6"/>
+                    <line x1="6"  y1="7" x2="6"  y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
+                    <line x1="11" y1="7" x2="11" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
+                    <line x1="16" y1="7" x2="16" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
+
+                    <!-- Cab section on RIGHT -->
+                    <rect x="23" y="4" width="13" height="20" rx="2" fill="#e08800"/>
+
+                    <!-- Windshield -->
+                    <rect x="26" y="6" width="9" height="9" rx="1" fill="rgba(200,235,255,.9)"/>
+
                     <!-- Wheels -->
-                    <circle cx="8"  cy="25" r="5" fill="#1a1a1a"/>
-                    <circle cx="8"  cy="25" r="2.5" fill="#888"/>
-                    <circle cx="27" cy="25" r="5" fill="#1a1a1a"/>
-                    <circle cx="27" cy="25" r="2.5" fill="#888"/>
-                    <!-- Headlight -->
-                    <rect x="0" y="10" width="3" height="4" rx="1" fill="#fffde0" opacity=".9"/>
+                    <circle cx="9"  cy="25" r="5" fill="#1a1a1a"/>
+                    <circle cx="9"  cy="25" r="2.5" fill="#888"/>
+                    <circle cx="28" cy="25" r="5" fill="#1a1a1a"/>
+                    <circle cx="28" cy="25" r="2.5" fill="#888"/>
+
+                    <!-- Headlight on RIGHT -->
+                    <rect x="33" y="10" width="3" height="4" rx="1" fill="#fffde0" opacity=".9"/>
+
                     <!-- Status text / icon shown via JS -->
-                    <text x="38" y="18" font-size="14" id="map-truck-icon">🚛</text>
+                    <text x="40" y="18" font-size="14" id="map-truck-icon"></text>
                   </g>
 
                 </svg>
@@ -398,17 +404,6 @@
                 <div class="map-legend-item">
                   <div class="legend-dot truck"></div>
                   <span>Posisi Truk</span>
-                </div>
-              </div>
-
-              <!-- Progress bar -->
-              <div class="progress-wrap">
-                <div class="progress-label">
-                  <span>Progress Pengiriman</span>
-                  <span id="map-progress-pct">0%</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-fill" id="map-progress-fill" style="width:0%"></div>
                 </div>
               </div>
 

@@ -555,8 +555,6 @@ function renderMap(p) {
   document.getElementById('map-origin-label').textContent  = shorten(p.location);
   document.getElementById('map-dest-label').textContent    = shorten(p.destination);
   document.getElementById('map-company-label').textContent = shorten(p.company);
-  document.getElementById('map-progress-pct').textContent  = `${progress}%`;
-  document.getElementById('map-progress-fill').style.width = `${progress}%`;
 
   startTruckAnimation(progress, p.status);
 }
@@ -581,7 +579,7 @@ function startTruckAnimation(targetPct, status) {
     return;
   }
 
-  document.getElementById('map-truck-icon').textContent = '🚛';
+  document.getElementById('map-truck-icon').textContent = '';
   let current = 0;
   const startPt = pathEl.getPointAtLength(0);
   truckEl.setAttribute('transform', `translate(${startPt.x - 18}, ${startPt.y - 18})`);
