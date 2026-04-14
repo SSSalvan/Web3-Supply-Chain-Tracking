@@ -49,21 +49,6 @@ textarea { cursor: text !important; }
 
 select { cursor: pointer !important; }
 
-/* ── TOP BAR ── */
-.topbar {
-  background: var(--navy);
-  padding: 6px 48px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.topbar-left { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: .3px; }
-.topbar-right { display: flex; gap: 2px; }
-.lang-btn {
-  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 3px;
-  border: none; cursor: pointer; font-family: inherit; letter-spacing: .5px;
-}
-.lang-btn.active { background: var(--teal); color: #fff; }
-.lang-btn:not(.active) { background: transparent; color: rgba(255,255,255,.4); }
-
 /* ── NAVBAR ── */
 nav {
   background: var(--white);
