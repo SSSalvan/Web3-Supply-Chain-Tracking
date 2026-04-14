@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════
-//  app.js — Integrasi Blockchain
-//  Frontend: Kent | Integrasi: Bisma | Smart Contract: Hyun
+//  app.js — integrasi blockchain + role-based pages
+//  ganti contract address di bawah ke contract role-based yang baru
 // ════════════════════════════════════════════════════════════
 
 // ── CONTRACT CONFIG ──────────────────────────────────────────
-const CONTRACT_ADDRESS = "0x302186Aa13455062F86497EF196d843f7F0a0fE0";
+const CONTRACT_ADDRESS = "0x6Aab135dC8e3720B2F1A720094cD2a3AA7763ef7";
 
 const ABI = [
   {
@@ -81,17 +81,100 @@ const ABI = [
     "name": "productExists",
     "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
     "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "name": "userRoles",
+    "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getMyRole",
+    "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+    "name": "getRoleName",
+    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_user", "type": "address" },
+      { "internalType": "uint8", "name": "_role", "type": "uint8" }
+    ],
+    "name": "setUserRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   }
 ];
 
+const ROLE = {
+  NONE: 0,
+  ADMIN: 1,
+  MANUFACTURER: 2,
+  DISTRIBUTOR: 3
+};
+
+const ROLE_ACCESS = {
+  none: ["track", "list"],
+  admin: ["create", "update", "track", "list", "roles"],
+  manufacturer: ["create", "track", "list"],
+  distributor: ["update", "track", "list"]
+};
+
+const STATUS_OPTIONS = {
+  admin: [
+    "Menunggu",
+    "Di Gudang",
+    "Siap Diambil",
+    "Diambil Distributor",
+    "Dalam Transit",
+    "Terkirim"
+  ],
+  manufacturer: [
+    "Menunggu",
+    "Di Gudang",
+    "Siap Diambil"
+  ],
+  distributor: [
+    "Diambil Distributor",
+    "Dalam Transit",
+    "Terkirim"
+  ],
+  none: []
+};
+
+const STATUS_META = {
+  "Menunggu": { icon: "⏳", badge: "pending", progress: 0, dot: "gray" },
+  "Di Gudang": { icon: "🏭", badge: "warehouse", progress: 20, dot: "blue" },
+  "Siap Diambil": { icon: "📦", badge: "warehouse", progress: 40, dot: "blue" },
+  "Diambil Distributor": { icon: "🚚", badge: "transit", progress: 60, dot: "yellow" },
+  "Dalam Transit": { icon: "🚛", badge: "transit", progress: 80, dot: "yellow" },
+  "Terkirim": { icon: "✅", badge: "delivered", progress: 100, dot: "green" }
+};
+
 // ── STATE ─────────────────────────────────────────────────────
 let provider, signer, contract;
-let products = [];   // local cache dari blockchain
+let products = [];
 let isConnected = false;
+let currentAccount = "";
+let currentRoleValue = ROLE.NONE;
+let currentRoleName = "none";
+let _updateTarget = null;
+let _trackAnimInterval = null;
 
-// ── INIT: Auto connect kalau MetaMask sudah pernah connect ───
+// ── INIT ──────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   injectConnectBanner();
+  applyRoleUI();
+  renderStatusOptions();
   if (window.ethereum) {
     const accounts = await window.ethereum.request({ method: 'eth_accounts' });
     if (accounts.length > 0) await connectWallet(true);
@@ -100,7 +183,7 @@ window.addEventListener('load', async () => {
   }
 });
 
-// ── INJECT CONNECT BANNER ────────────────────────────────────
+// ── CONNECT BANNER ────────────────────────────────────────────
 function injectConnectBanner() {
   const bar = document.createElement('div');
   bar.id = 'chain-bar';
@@ -111,9 +194,9 @@ function injectConnectBanner() {
     border-bottom:2px solid #2a4a72;
   `;
   bar.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span id="chain-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>
-      <span id="chain-status">Wallet belum terhubung — data tidak dapat dimuat dari blockchain</span>
+      <span id="chain-status">wallet belum terhubung — hubungkan metamask untuk membaca role</span>
     </div>
     <button id="chain-btn" onclick="connectWallet(false)"
       style="background:#C8F012;color:#0a1628;border:none;padding:6px 16px;border-radius:6px;
@@ -130,37 +213,270 @@ async function connectWallet(silent = false) {
     if (!silent) toast('MetaMask tidak ditemukan. Silakan install MetaMask.', 'err');
     return;
   }
+
   try {
     if (!silent) await window.ethereum.request({ method: 'eth_requestAccounts' });
     provider = new ethers.BrowserProvider(window.ethereum);
     signer   = await provider.getSigner();
     contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-    const addr    = await signer.getAddress();
+    currentAccount = await signer.getAddress();
     const network = await provider.getNetwork();
     const chainId = network.chainId;
 
-    // Warn if not on Sepolia (chainId 11155111)
     if (chainId !== 11155111n) {
-      toast('⚠️ Kamu tidak berada di Sepolia! Ganti network ke Sepolia.', 'err');
+      toast('⚠️ kamu tidak berada di Sepolia, ganti network ke Sepolia', 'err');
     }
 
     isConnected = true;
+    await loadUserRole();
     document.getElementById('chain-dot').style.background = '#22c55e';
-    document.getElementById('chain-status').textContent =
-      `✓ Terhubung: ${addr.slice(0,6)}…${addr.slice(-4)} · Sepolia Testnet · ${CONTRACT_ADDRESS.slice(0,10)}…`;
     document.getElementById('chain-btn').style.display = 'none';
+    renderConnectionStatus();
+    applyRoleUI();
+    renderStatusOptions();
+    renderRolePageSummary();
 
-    if (!silent) toast('Wallet berhasil terhubung!');
+    if (!silent) toast('wallet berhasil terhubung');
     await loadAllFromChain();
   } catch (e) {
-    if (!silent) toast('Gagal connect: ' + (e.message || e), 'err');
+    console.error('connectWallet error:', e);
+    if (!silent) toast('Gagal connect: ' + (e.reason || e.message || e), 'err');
+  }
+}
+
+async function loadUserRole() {
+  if (!contract || !currentAccount) {
+    currentRoleValue = ROLE.NONE;
+    currentRoleName = 'none';
+    return;
+  }
+
+  try {
+    const rawRole = await contract.userRoles(currentAccount);
+    currentRoleValue = Number(rawRole);
+    currentRoleName = roleValueToName(currentRoleValue);
+  } catch (e) {
+    console.error('loadUserRole error:', e);
+    currentRoleValue = ROLE.NONE;
+    currentRoleName = 'none';
+    toast('Role wallet tidak dapat dibaca, cek contract address dan ABI', 'err');
+  }
+}
+
+function renderConnectionStatus() {
+  const label = roleNameToLabel(currentRoleName);
+  const shortAddr = currentAccount ? `${currentAccount.slice(0, 6)}…${currentAccount.slice(-4)}` : '—';
+  document.getElementById('chain-status').textContent =
+    `✓ terhubung: ${shortAddr} · role: ${label} · Sepolia Testnet · ${CONTRACT_ADDRESS.slice(0, 10)}…`;
+}
+
+// ── ROLE UI ──────────────────────────────────────────────────
+function roleValueToName(value) {
+  switch (Number(value)) {
+    case ROLE.ADMIN: return 'admin';
+    case ROLE.MANUFACTURER: return 'manufacturer';
+    case ROLE.DISTRIBUTOR: return 'distributor';
+    default: return 'none';
+  }
+}
+
+function roleNameToLabel(name) {
+  return {
+    admin: 'admin',
+    manufacturer: 'manufacturer',
+    distributor: 'distributor',
+    none: 'none'
+  }[name] || 'none';
+}
+
+function getAllowedPanels() {
+  return ROLE_ACCESS[currentRoleName] || ROLE_ACCESS.none;
+}
+
+function canAccessPanel(panelName) {
+  return getAllowedPanels().includes(panelName);
+}
+
+function applyRoleUI() {
+  const allowed = new Set(getAllowedPanels());
+
+  document.querySelectorAll('.nav-link[data-panel]').forEach(btn => {
+    btn.style.display = allowed.has(btn.dataset.panel) ? '' : 'none';
+  });
+
+  document.querySelectorAll('.section-tab[data-panel]').forEach(btn => {
+    btn.style.display = allowed.has(btn.dataset.panel) ? '' : 'none';
+  });
+
+  document.querySelectorAll('.panel').forEach(panel => {
+    const panelName = panel.id.replace('panel-', '');
+    panel.style.display = allowed.has(panelName) ? '' : 'none';
+    if (!allowed.has(panelName)) panel.classList.remove('active');
+  });
+
+  const listCreateBtn = document.getElementById('list-create-btn');
+  if (listCreateBtn) listCreateBtn.style.display = canAccessPanel('create') ? '' : 'none';
+
+  const desired = getDefaultPanelForRole();
+  const activePanel = document.querySelector('.panel.active');
+  if (!activePanel || activePanel.style.display === 'none') {
+    activatePanel(desired, false);
+  } else {
+    updateActiveNavAndTab(activePanel.id.replace('panel-', ''));
+  }
+
+  renderRolePageSummary();
+}
+
+function getDefaultPanelForRole() {
+  if (currentRoleName === 'admin' || currentRoleName === 'manufacturer') return 'create';
+  if (currentRoleName === 'distributor') return 'update';
+  return 'track';
+}
+
+function activatePanel(name, showToastIfBlocked = true) {
+  if (!canAccessPanel(name)) {
+    if (showToastIfBlocked) toast('Halaman ini tidak tersedia untuk role wallet kamu', 'err');
+    return;
+  }
+
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+
+  updateActiveNavAndTab(name);
+
+  if (name === 'list') renderTable();
+  if (name === 'roles') renderRolePageSummary();
+  updateAll();
+}
+
+function updateActiveNavAndTab(name) {
+  document.querySelectorAll('.nav-link[data-panel]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.panel === name);
+  });
+  document.querySelectorAll('.section-tab[data-panel]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.panel === name);
+  });
+}
+
+function switchNav(_btn, panel) {
+  activatePanel(panel);
+}
+
+function showTab(name, _btn) {
+  activatePanel(name);
+}
+
+function renderRolePageSummary() {
+  const el = document.getElementById('role-page-summary');
+  if (!el) return;
+
+  const walletText = currentAccount || 'wallet belum terhubung';
+  const roleText = roleNameToLabel(currentRoleName);
+  const allowedText = getAllowedPanels().map(panelToLabel).join(', ');
+
+  el.innerHTML = `
+    <div class="ci-item"><div class="ci-label">wallet aktif</div><div class="ci-val" style="word-break:break-all">${walletText}</div></div>
+    <div class="ci-item"><div class="ci-label">role aktif</div><div class="ci-val">${roleText}</div></div>
+    <div class="ci-item"><div class="ci-label">halaman yang bisa diakses</div><div class="ci-val">${allowedText}</div></div>
+  `;
+}
+
+function panelToLabel(panel) {
+  return {
+    create: 'buat produk',
+    update: 'perbarui produk',
+    track: 'lacak produk',
+    list: 'semua produk',
+    roles: 'atur role'
+  }[panel] || panel;
+}
+
+function ensureRole(requiredPanels, message) {
+  const allowed = Array.isArray(requiredPanels) ? requiredPanels : [requiredPanels];
+  const ok = allowed.some(panel => canAccessPanel(panel));
+  if (!ok) toast(message, 'err');
+  return ok;
+}
+
+// ── ROLE MANAGEMENT ──────────────────────────────────────────
+async function checkWalletRole() {
+  if (!isConnected || !contract) {
+    toast('Hubungkan MetaMask terlebih dahulu.', 'err');
+    return;
+  }
+
+  const wallet = document.getElementById('role-wallet').value.trim();
+  if (!ethers.isAddress(wallet)) {
+    toast('Alamat wallet tidak valid.', 'err');
+    return;
+  }
+
+  try {
+    const roleValue = Number(await contract.userRoles(wallet));
+    const roleName = roleNameToLabel(roleValueToName(roleValue));
+    const result = document.getElementById('role-result');
+    result.style.display = 'block';
+    result.innerHTML = `
+      <div class="ci-item"><div class="ci-label">wallet</div><div class="ci-val" style="word-break:break-all">${wallet}</div></div>
+      <div class="ci-item"><div class="ci-label">role</div><div class="ci-val">${roleName}</div></div>
+    `;
+  } catch (e) {
+    toast('Gagal membaca role wallet: ' + (e.reason || e.message || e), 'err');
+  }
+}
+
+async function setRoleFromUI() {
+  if (!isConnected) {
+    toast('Hubungkan MetaMask terlebih dahulu.', 'err');
+    return;
+  }
+  if (currentRoleName !== 'admin') {
+    toast('Hanya admin yang bisa mengatur role.', 'err');
+    return;
+  }
+
+  const wallet = document.getElementById('role-wallet').value.trim();
+  const roleValue = Number(document.getElementById('role-select').value);
+
+  if (!ethers.isAddress(wallet)) {
+    toast('Alamat wallet tidak valid.', 'err');
+    return;
+  }
+
+  const btn = document.querySelector('#panel-roles .btn-primary');
+  try {
+    btn.disabled = true;
+    btn.textContent = '⏳ Menunggu konfirmasi MetaMask…';
+    toast('Konfirmasi transaksi di MetaMask…');
+
+    const tx = await contract.setUserRole(wallet, roleValue);
+    btn.textContent = '⛏️ Mining transaksi…';
+    toast('Transaksi terkirim, menunggu konfirmasi blockchain…');
+    await tx.wait();
+
+    toast(`Role wallet berhasil diperbarui menjadi ${roleNameToLabel(roleValueToName(roleValue))}`);
+    await checkWalletRole();
+
+    if (wallet.toLowerCase() === currentAccount.toLowerCase()) {
+      await loadUserRole();
+      renderConnectionStatus();
+      applyRoleUI();
+      renderStatusOptions();
+    }
+  } catch (e) {
+    toast('Gagal: ' + (e.reason || e.message || e), 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Role';
   }
 }
 
 // ── LOAD ALL PRODUCTS FROM BLOCKCHAIN ───────────────────────
 async function loadAllFromChain() {
-  if (!isConnected) return;
+  if (!isConnected || !contract) return;
   try {
     const ids = await contract.getAllProductIds();
     products = [];
@@ -180,29 +496,28 @@ async function loadAllFromChain() {
 async function fetchProduct(id) {
   try {
     const r = await contract.getProduct(id);
-    // Fetch history
     const histCount = Number(await contract.getProductHistoryCount(id));
-    const history   = [];
+    const history = [];
     for (let i = 0; i < histCount; i++) {
       const h = await contract.getProductHistoryItem(id, i);
       history.push({
-        time:     new Date(Number(h.time) * 1000).toISOString(),
+        time: new Date(Number(h.time) * 1000).toISOString(),
         location: h.location,
-        status:   h.status,
-        desc:     h.desc
+        status: mapStatus(h.status),
+        desc: h.desc
       });
     }
     return {
-      id:          r.id,
-      name:        r.name,
-      location:    r.location,
+      id: r.id,
+      name: r.name,
+      location: r.location,
       destination: r.destination,
-      quantity:    Number(r.quantity),
-      company:     r.company,
-      notes:       r.notes,
-      status:      mapStatus(r.status),
-      createdAt:   new Date(Number(r.createdAt) * 1000).toISOString(),
-      updatedAt:   new Date(Number(r.updatedAt) * 1000).toISOString(),
+      quantity: Number(r.quantity),
+      company: r.company,
+      notes: r.notes,
+      status: mapStatus(r.status),
+      createdAt: new Date(Number(r.createdAt) * 1000).toISOString(),
+      updatedAt: new Date(Number(r.updatedAt) * 1000).toISOString(),
       history
     };
   } catch (e) {
@@ -211,38 +526,21 @@ async function fetchProduct(id) {
   }
 }
 
-// Map English status to Indonesian (for UI badges)
 function mapStatus(s) {
   const m = {
-    'Created':       'Menunggu',
-    'Menunggu':      'Menunggu',
-    'Di Gudang':     'Di Gudang',
+    'Created': 'Menunggu',
+    'Menunggu': 'Menunggu',
+    'Di Gudang': 'Di Gudang',
+    'Ready for Pickup': 'Siap Diambil',
+    'Siap Diambil': 'Siap Diambil',
+    'Picked Up by Distributor': 'Diambil Distributor',
+    'Diambil Distributor': 'Diambil Distributor',
     'Dalam Transit': 'Dalam Transit',
-    'In Transit':    'Dalam Transit',
-    'Terkirim':      'Terkirim',
-    'Delivered':     'Terkirim',
+    'In Transit': 'Dalam Transit',
+    'Terkirim': 'Terkirim',
+    'Delivered': 'Terkirim'
   };
   return m[s] || s;
-}
-
-// ── NAVIGATION ──────────────────────────────────────────────
-function switchNav(btn, panel) {
-  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const tabs = document.querySelectorAll('.section-tab');
-  const idx  = ['create', 'update', 'track', 'list'].indexOf(panel);
-  showTab(panel, tabs[idx]);
-}
-
-function showTab(name, btn) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  if (btn) {
-    document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-  }
-  if (name === 'list') renderTable();
-  updateAll();
 }
 
 // ── TOAST ────────────────────────────────────────────────────
@@ -255,30 +553,43 @@ function toast(msg, type = 'ok') {
 }
 
 // ── BADGE ────────────────────────────────────────────────────
-function badge(s) {
-  const m = {
-    'Dalam Transit': 'transit',
-    'Di Gudang':     'warehouse',
-    'Terkirim':      'delivered',
-    'Menunggu':      'pending'
-  };
-  return `<span class="badge ${m[s] || 'pending'}"><span class="badge-dot"></span>${s}</span>`;
+function badge(status) {
+  const meta = STATUS_META[status] || STATUS_META['Menunggu'];
+  return `<span class="badge ${meta.badge}"><span class="badge-dot"></span>${meta.icon} ${status}</span>`;
+}
+
+function getStatusOptionsForCurrentRole() {
+  return STATUS_OPTIONS[currentRoleName] || STATUS_OPTIONS.none;
+}
+
+function renderStatusOptions(selectedValue = '') {
+  const select = document.getElementById('u-status');
+  if (!select) return;
+
+  const options = getStatusOptionsForCurrentRole();
+  select.innerHTML = `<option value="">— Pilih Status Baru —</option>` + options.map(status => {
+    const meta = STATUS_META[status] || { icon: '•' };
+    return `<option value="${status}">${meta.icon} ${status}</option>`;
+  }).join('');
+
+  select.disabled = options.length === 0;
+  if (selectedValue && options.includes(selectedValue)) select.value = selectedValue;
 }
 
 // ── STATS & LIVE FEED ────────────────────────────────────────
 function updateAll() {
-  const t   = products.length;
-  const tr  = products.filter(p => p.status === 'Dalam Transit').length;
-  const w   = products.filter(p => p.status === 'Di Gudang').length;
-  const d   = products.filter(p => p.status === 'Terkirim').length;
-  const pen = products.filter(p => p.status === 'Menunggu').length;
+  const total = products.length;
+  const transit = products.filter(p => ['Diambil Distributor', 'Dalam Transit'].includes(p.status)).length;
+  const warehouse = products.filter(p => ['Di Gudang', 'Siap Diambil'].includes(p.status)).length;
+  const delivered = products.filter(p => p.status === 'Terkirim').length;
+  const pending = products.filter(p => p.status === 'Menunggu').length;
 
   [
-    ['h-total', t], ['h-transit', tr], ['h-delivered', d], ['h-warehouse', w],
-    ['s-total', t], ['s-transit', tr], ['s-warehouse', w], ['s-delivered', d], ['s-pending', pen]
-  ].forEach(([id, v]) => {
+    ['h-total', total], ['h-transit', transit], ['h-delivered', delivered], ['h-warehouse', warehouse],
+    ['s-total', total], ['s-transit', transit], ['s-warehouse', warehouse], ['s-delivered', delivered], ['s-pending', pending]
+  ].forEach(([id, value]) => {
     const el = document.getElementById(id);
-    if (el) el.textContent = v;
+    if (el) el.textContent = value;
   });
 
   const feed = document.getElementById('live-feed');
@@ -286,37 +597,41 @@ function updateAll() {
     feed.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-400);font-size:12px;">Belum ada aktivitas.</div>';
     return;
   }
-  const dotMap = { 'Dalam Transit': 'yellow', 'Terkirim': 'green', 'Di Gudang': 'blue', 'Menunggu': 'gray' };
-  feed.innerHTML = [...products].reverse().slice(0, 5).map(p => `
-    <div class="live-item">
-      <div class="live-dot ${dotMap[p.status] || 'gray'}"></div>
-      <div>
-        <div class="live-name">${p.name}</div>
-        <div class="live-meta">${p.status} · ${p.destination}</div>
+
+  feed.innerHTML = [...products].reverse().slice(0, 5).map(p => {
+    const meta = STATUS_META[p.status] || STATUS_META['Menunggu'];
+    return `
+      <div class="live-item">
+        <div class="live-dot ${meta.dot}"></div>
+        <div>
+          <div class="live-name">${p.name}</div>
+          <div class="live-meta">${p.status} · ${p.destination}</div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-// ══════════════════════════════════════════
-// ── CREATE PRODUCT (→ Blockchain)
-// ══════════════════════════════════════════
+// ── CREATE PRODUCT ───────────────────────────────────────────
 async function createProduct() {
   if (!isConnected) { toast('Hubungkan MetaMask terlebih dahulu.', 'err'); return; }
+  if (!ensureRole('create', 'Role wallet kamu tidak bisa membuat produk')) return;
 
-  const id      = document.getElementById('c-id').value.trim();
-  const name    = document.getElementById('c-name').value.trim();
-  const loc     = document.getElementById('c-loc').value.trim();
-  const dest    = document.getElementById('c-dest').value.trim();
-  const qty     = document.getElementById('c-qty').value.trim();
+  const id = document.getElementById('c-id').value.trim();
+  const name = document.getElementById('c-name').value.trim();
+  const loc = document.getElementById('c-loc').value.trim();
+  const dest = document.getElementById('c-dest').value.trim();
+  const qty = document.getElementById('c-qty').value.trim();
   const company = document.getElementById('c-company').value.trim();
-  const notes   = document.getElementById('c-notes').value.trim();
+  const notes = document.getElementById('c-notes').value.trim();
 
   if (!id || !name || !loc || !dest || !qty || !company) {
-    toast('Semua kolom wajib (bertanda *) harus diisi.', 'err'); return;
+    toast('Semua kolom wajib harus diisi.', 'err');
+    return;
   }
   if (isNaN(qty) || Number(qty) <= 0) {
-    toast('Jumlah produk harus berupa angka positif.', 'err'); return;
+    toast('Jumlah produk harus berupa angka positif.', 'err');
+    return;
   }
 
   const btn = document.querySelector('#panel-create .btn-primary');
@@ -328,10 +643,9 @@ async function createProduct() {
     const tx = await contract.createProduct(id, name, loc, dest, BigInt(qty), company, notes || '');
     btn.textContent = '⛏️ Mining transaksi…';
     toast('Transaksi terkirim, menunggu konfirmasi blockchain…');
-
     await tx.wait();
 
-    toast(`Produk "${name}" berhasil didaftarkan ke blockchain! 🎉`);
+    toast(`Produk "${name}" berhasil didaftarkan ke blockchain`);
     resetCreate();
     await loadAllFromChain();
   } catch (e) {
@@ -344,18 +658,22 @@ async function createProduct() {
 
 function resetCreate() {
   ['c-id', 'c-name', 'c-loc', 'c-dest', 'c-qty', 'c-company', 'c-notes']
-    .forEach(i => document.getElementById(i).value = '');
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
 }
 
-// ══════════════════════════════════════════
-// ── UPDATE PRODUCT (→ Blockchain)
-// ══════════════════════════════════════════
-let _updateTarget = null;
-
+// ── UPDATE PRODUCT ───────────────────────────────────────────
 function onUpdateInput() {
-  const q   = document.getElementById('u-id').value.trim().toLowerCase();
+  const q = document.getElementById('u-id').value.trim().toLowerCase();
   const box = document.getElementById('u-search-results');
-  if (!q) { box.innerHTML = ''; box.style.display = 'none'; hideUpdateForm(); return; }
+  if (!q) {
+    box.innerHTML = '';
+    box.style.display = 'none';
+    hideUpdateForm();
+    return;
+  }
 
   const matches = products.filter(p =>
     p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
@@ -391,35 +709,38 @@ function selectUpdateProduct(id) {
 
 function showUpdateForm(p) {
   document.getElementById('u-empty').style.display = 'none';
-  document.getElementById('u-form').style.display  = 'block';
-  document.getElementById('u-cur-info').innerHTML  = `
+  document.getElementById('u-form').style.display = 'block';
+  document.getElementById('u-cur-info').innerHTML = `
     <div class="ci-item"><div class="ci-label">Nama Produk</div><div class="ci-val">${p.name}</div></div>
     <div class="ci-item"><div class="ci-label">Lokasi Saat Ini</div><div class="ci-val">${p.location}</div></div>
     <div class="ci-item"><div class="ci-label">Tujuan</div><div class="ci-val">${p.destination}</div></div>
     <div class="ci-item"><div class="ci-label">Perusahaan</div><div class="ci-val">${p.company}</div></div>
     <div class="ci-item"><div class="ci-label">Status</div><div class="ci-val">${p.status}</div></div>
   `;
-  document.getElementById('u-loc').value    = '';
+  document.getElementById('u-loc').value = '';
+  renderStatusOptions();
   document.getElementById('u-status').value = '';
 }
 
 function hideUpdateForm() {
   _updateTarget = null;
-  document.getElementById('u-form').style.display  = 'none';
+  document.getElementById('u-form').style.display = 'none';
   document.getElementById('u-empty').style.display = 'block';
 }
 
 async function doUpdate() {
   if (!isConnected) { toast('Hubungkan MetaMask terlebih dahulu.', 'err'); return; }
-  const p      = _updateTarget;
-  const newLoc = document.getElementById('u-loc').value.trim();
-  const newSt  = document.getElementById('u-status').value;
+  if (!ensureRole('update', 'Role wallet kamu tidak bisa memperbarui produk')) return;
 
-  if (!p)                { toast('Pilih produk terlebih dahulu.', 'err'); return; }
+  const p = _updateTarget;
+  const newLoc = document.getElementById('u-loc').value.trim();
+  const newSt = document.getElementById('u-status').value;
+
+  if (!p) { toast('Pilih produk terlebih dahulu.', 'err'); return; }
   if (!newLoc && !newSt) { toast('Masukkan lokasi baru atau status baru.', 'err'); return; }
 
-  const finalLoc    = newLoc || p.location;
-  const finalStatus = newSt  || p.status;
+  const finalLoc = newLoc || p.location;
+  const finalStatus = newSt || p.status;
 
   const btn = document.querySelector('#panel-update .btn-primary');
   try {
@@ -430,14 +751,16 @@ async function doUpdate() {
     const tx = await contract.updateProduct(p.id, finalLoc, finalStatus);
     btn.textContent = '⛏️ Mining transaksi…';
     toast('Transaksi terkirim, menunggu konfirmasi blockchain…');
-
     await tx.wait();
-    toast(`Produk "${p.name}" berhasil diperbarui di blockchain! 🎉`);
+
+    toast(`Produk "${p.name}" berhasil diperbarui di blockchain`);
     await loadAllFromChain();
 
-    // Refresh form with updated data
     const updated = products.find(x => x.id === p.id);
-    if (updated) { _updateTarget = updated; showUpdateForm(updated); }
+    if (updated) {
+      _updateTarget = updated;
+      showUpdateForm(updated);
+    }
   } catch (e) {
     toast('Gagal: ' + (e.reason || e.message || e), 'err');
   } finally {
@@ -446,13 +769,9 @@ async function doUpdate() {
   }
 }
 
-// ══════════════════════════════════════════
-// ── TRACK PRODUCT
-// ══════════════════════════════════════════
-let _trackAnimInterval = null;
-
+// ── TRACK PRODUCT ────────────────────────────────────────────
 function onTrackInput() {
-  const q   = document.getElementById('t-id').value.trim().toLowerCase();
+  const q = document.getElementById('t-id').value.trim().toLowerCase();
   const box = document.getElementById('t-search-results');
   if (!q) { box.innerHTML = ''; box.style.display = 'none'; return; }
 
@@ -465,6 +784,7 @@ function onTrackInput() {
     box.innerHTML = `<div style="padding:12px 14px;font-size:13px;color:var(--gray-400);">Tidak ditemukan untuk "<strong>${q}</strong>"</div>`;
     return;
   }
+
   box.style.display = 'block';
   box.innerHTML = matches.map(p => `
     <div class="search-result-item" onclick="selectTrackProduct('${p.id}')">
@@ -489,44 +809,43 @@ async function doTrack() {
   const raw = document.getElementById('t-id').value.trim();
   document.getElementById('t-search-results').style.display = 'none';
 
-  // Try local cache first
   let p = products.find(x =>
     x.id.toLowerCase() === raw.toLowerCase() ||
     x.name.toLowerCase().includes(raw.toLowerCase()) ||
     raw.includes(x.id)
   );
 
-  // If not in cache and connected, try fetching directly from chain
   if (!p && isConnected && raw) {
     try {
       p = await fetchProduct(raw.trim());
       if (p) products.push(p);
-    } catch(e) { /* not found */ }
+    } catch (_) {}
   }
 
   if (!p) {
     toast('Produk tidak ditemukan.', 'err');
-    document.getElementById('t-empty').style.display  = 'block';
+    document.getElementById('t-empty').style.display = 'block';
     document.getElementById('t-result').style.display = 'none';
     return;
   }
+
   renderTrack(p);
 }
 
 function renderTrack(p) {
-  document.getElementById('t-empty').style.display  = 'none';
+  document.getElementById('t-empty').style.display = 'none';
   document.getElementById('t-result').style.display = 'block';
 
   document.getElementById('t-info').innerHTML = [
-    ['ID Produk',           `<span style="font-family:monospace;color:var(--teal-dark);font-weight:700">${p.id}</span>`],
-    ['Nama Produk',         p.name],
-    ['Jumlah',              `${p.quantity} unit`],
-    ['Lokasi Saat Ini',     p.location],
-    ['Tujuan Pengiriman',   p.destination],
+    ['ID Produk', `<span style="font-family:monospace;color:var(--teal-dark);font-weight:700">${p.id}</span>`],
+    ['Nama Produk', p.name],
+    ['Jumlah', `${p.quantity} unit`],
+    ['Lokasi Saat Ini', p.location],
+    ['Tujuan Pengiriman', p.destination],
     ['Perusahaan Penerima', p.company],
-    ['Status',              badge(p.status)],
-    ['Catatan',             p.notes || '—'],
-    ['Didaftarkan',         fmt(p.createdAt)],
+    ['Status', badge(p.status)],
+    ['Catatan', p.notes || '—'],
+    ['Didaftarkan', fmt(p.createdAt)],
     ['Terakhir Diperbarui', fmt(p.updatedAt)]
   ].map(([k, v]) => `
     <div class="info-row">
@@ -549,13 +868,10 @@ function renderTrack(p) {
 
 // ── ANIMATED MAP ─────────────────────────────────────────────
 function renderMap(p) {
-  const progressByStatus = { 'Menunggu': 0, 'Di Gudang': 5, 'Dalam Transit': 55, 'Terkirim': 100 };
-  const progress = progressByStatus[p.status] ?? 40;
-
-  document.getElementById('map-origin-label').textContent  = shorten(p.location);
-  document.getElementById('map-dest-label').textContent    = shorten(p.destination);
+  const progress = (STATUS_META[p.status] || STATUS_META['Menunggu']).progress;
+  document.getElementById('map-origin-label').textContent = shorten(p.location);
+  document.getElementById('map-dest-label').textContent = shorten(p.destination);
   document.getElementById('map-company-label').textContent = shorten(p.company);
-
   startTruckAnimation(progress, p.status);
 }
 
@@ -564,13 +880,17 @@ function shorten(str) {
 }
 
 function startTruckAnimation(targetPct, status) {
-  if (_trackAnimInterval) { clearInterval(_trackAnimInterval); _trackAnimInterval = null; }
-  const pathEl  = document.getElementById('truck-road-path');
+  if (_trackAnimInterval) {
+    clearInterval(_trackAnimInterval);
+    _trackAnimInterval = null;
+  }
+
+  const pathEl = document.getElementById('truck-road-path');
   const truckEl = document.getElementById('truck-icon-group');
   if (!pathEl || !truckEl) return;
 
   const totalLen = pathEl.getTotalLength();
-  const endLen   = (targetPct / 100) * totalLen;
+  const endLen = (targetPct / 100) * totalLen;
 
   if (status === 'Terkirim') {
     const pt = pathEl.getPointAtLength(totalLen);
@@ -592,12 +912,16 @@ function startTruckAnimation(targetPct, status) {
 
   _trackAnimInterval = setInterval(() => {
     current += (endLen - current) * 0.035 + 0.8;
-    if (current >= endLen) { current = endLen; clearInterval(_trackAnimInterval); _trackAnimInterval = null; }
+    if (current >= endLen) {
+      current = endLen;
+      clearInterval(_trackAnimInterval);
+      _trackAnimInterval = null;
+    }
 
-    const pt      = pathEl.getPointAtLength(current);
+    const pt = pathEl.getPointAtLength(current);
     const ptAhead = pathEl.getPointAtLength(Math.min(current + 4, totalLen));
-    const angle   = Math.atan2(ptAhead.y - pt.y, ptAhead.x - pt.x) * (180 / Math.PI);
-    const wobble  = Math.sin(current * 0.15) * 1.5;
+    const angle = Math.atan2(ptAhead.y - pt.y, ptAhead.x - pt.x) * (180 / Math.PI);
+    const wobble = Math.sin(current * 0.15) * 1.5;
 
     truckEl.setAttribute('transform',
       `translate(${pt.x - 18}, ${pt.y - 18 + wobble}) rotate(${angle}, 18, 18)`);
@@ -607,7 +931,7 @@ function startTruckAnimation(targetPct, status) {
 // ── RENDER TABLE ─────────────────────────────────────────────
 function renderTable() {
   const q = (document.getElementById('list-search')?.value || '').toLowerCase();
-  const f = products.filter(p =>
+  const filtered = products.filter(p =>
     !q ||
     p.id.toLowerCase().includes(q) ||
     p.name.toLowerCase().includes(q) ||
@@ -621,19 +945,19 @@ function renderTable() {
   if (sub) sub.textContent = `${products.length} produk dalam sistem`;
 
   const tbody = document.getElementById('table-body');
-  if (!f.length) {
+  if (!filtered.length) {
     tbody.innerHTML = `
       <tr><td colspan="7">
         <div class="empty-state">
           <div class="empty-icon">📦</div>
           <div class="empty-title">${isConnected ? 'Belum Ada Produk' : 'Wallet Belum Terhubung'}</div>
-          <div class="empty-sub">${isConnected ? 'Daftarkan produk pertama Anda' : 'Hubungkan MetaMask untuk melihat data blockchain'}</div>
+          <div class="empty-sub">${isConnected ? 'Belum ada data produk di contract ini' : 'Hubungkan MetaMask untuk melihat data blockchain'}</div>
         </div>
       </td></tr>`;
     return;
   }
 
-  tbody.innerHTML = f.map(p => `
+  tbody.innerHTML = filtered.map(p => `
     <tr>
       <td class="td-id">${p.id}</td>
       <td class="td-name">${p.name}</td>
@@ -642,8 +966,7 @@ function renderTable() {
       <td>${p.company}</td>
       <td>${badge(p.status)}</td>
       <td>
-        <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px"
-          onclick="quickTrack('${p.id}')">🔍 Lacak</button>
+        <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="quickTrack('${p.id}')">🔍 Lacak</button>
       </td>
     </tr>
   `).join('');
@@ -653,8 +976,7 @@ function quickTrack(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   document.getElementById('t-id').value = `${p.id} — ${p.name}`;
-  showTab('track', document.querySelectorAll('.section-tab')[2]);
-  document.querySelectorAll('.nav-link').forEach((b, i) => b.classList.toggle('active', i === 2));
+  activatePanel('track');
   renderTrack(p);
 }
 
@@ -662,8 +984,7 @@ function quickSearch() {
   const q = document.getElementById('nav-search-box').value.trim();
   if (!q) return;
   document.getElementById('list-search').value = q;
-  showTab('list', document.querySelectorAll('.section-tab')[3]);
-  document.querySelectorAll('.nav-link').forEach((b, i) => b.classList.toggle('active', i === 3));
+  activatePanel('list');
   renderTable();
 }
 
@@ -682,6 +1003,7 @@ function fmt(iso) {
          ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ── INIT ─────────────────────────────────────────────────────
+// ── INIT RENDER ──────────────────────────────────────────────
 updateAll();
 renderTable();
+renderRolePageSummary();

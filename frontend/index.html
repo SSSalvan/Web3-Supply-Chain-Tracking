@@ -10,7 +10,6 @@
 </head>
 <body>
 
-
 <!-- ══ NAVBAR ══ -->
 <nav>
   <a class="nav-logo" href="#">
@@ -21,10 +20,11 @@
     </div>
   </a>
   <div class="nav-links">
-    <button class="nav-link active" onclick="switchNav(this,'create')">Buat Produk</button>
-    <button class="nav-link" onclick="switchNav(this,'update')">Perbarui</button>
-    <button class="nav-link" onclick="switchNav(this,'track')">Lacak</button>
-    <button class="nav-link" onclick="switchNav(this,'list')">Semua Produk</button>
+    <button class="nav-link active" data-panel="create" onclick="switchNav(this,'create')">Buat Produk</button>
+    <button class="nav-link" data-panel="update" onclick="switchNav(this,'update')">Perbarui</button>
+    <button class="nav-link" data-panel="track" onclick="switchNav(this,'track')">Lacak</button>
+    <button class="nav-link" data-panel="list" onclick="switchNav(this,'list')">Semua Produk</button>
+    <button class="nav-link" data-panel="roles" onclick="switchNav(this,'roles')">Atur Role</button>
   </div>
   <div class="nav-search">
     <span style="color:var(--gray-400);font-size:14px">🔍</span>
@@ -91,10 +91,11 @@
 <!-- ══ SECTION TABS ══ -->
 <div class="section-header">
   <div class="section-tabs">
-    <button class="section-tab active" onclick="showTab('create',this)">📦 Buat Produk</button>
-    <button class="section-tab" onclick="showTab('update',this)">✏️ Perbarui Produk</button>
-    <button class="section-tab" onclick="showTab('track',this)">🔍 Lacak Produk</button>
-    <button class="section-tab" onclick="showTab('list',this)">📋 Semua Produk</button>
+    <button class="section-tab active" data-panel="create" onclick="showTab('create',this)">📦 Buat Produk</button>
+    <button class="section-tab" data-panel="update" onclick="showTab('update',this)">✏️ Perbarui Produk</button>
+    <button class="section-tab" data-panel="track" onclick="showTab('track',this)">🔍 Lacak Produk</button>
+    <button class="section-tab" data-panel="list" onclick="showTab('list',this)">📋 Semua Produk</button>
+    <button class="section-tab" data-panel="roles" onclick="showTab('roles',this)">🛡️ Atur Role</button>
   </div>
 </div>
 
@@ -172,7 +173,6 @@
         </div>
         <div class="card-body">
 
-          <!-- Fuzzy search -->
           <div style="display:flex;gap:10px;margin-bottom:18px;align-items:flex-start;">
             <div class="search-wrap-rel">
               <input id="u-id" type="text"
@@ -198,10 +198,6 @@
                 <label>Status Baru</label>
                 <select id="u-status">
                   <option value="">— Pilih Status Baru —</option>
-                  <option value="Menunggu">⏳ Menunggu</option>
-                  <option value="Di Gudang">🏭 Di Gudang</option>
-                  <option value="Dalam Transit">🚛 Dalam Transit</option>
-                  <option value="Terkirim">✅ Terkirim</option>
                 </select>
               </div>
             </div>
@@ -237,17 +233,13 @@
             <button class="btn btn-primary" onclick="doTrack()">🔍 Lacak Sekarang</button>
           </div>
 
-          <!-- Empty state -->
           <div id="t-empty" class="empty-state">
             <div class="empty-icon">📡</div>
             <div class="empty-title">Siap Melacak</div>
             <div class="empty-sub">Ketik ID atau nama produk untuk melihat posisi dan riwayat</div>
           </div>
 
-          <!-- Result -->
           <div id="t-result" style="display:none">
-
-            <!-- Info + Timeline -->
             <div class="track-top">
               <div>
                 <div class="info-section-title">📋 Informasi Produk</div>
@@ -259,14 +251,11 @@
               </div>
             </div>
 
-            <!-- MAP -->
             <div class="map-section">
               <div class="info-section-title" style="margin-top:20px">🗺️ Peta Pengiriman Langsung</div>
 
               <div class="map-container">
-                <!-- SVG Dummy Map -->
                 <svg class="map-svg" viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Background terrain -->
                   <defs>
                     <radialGradient id="skyGrad" cx="50%" cy="0%" r="80%">
                       <stop offset="0%" stop-color="#c8dff0"/>
@@ -277,14 +266,11 @@
                     </filter>
                   </defs>
 
-                  <!-- Sky/ground -->
                   <rect width="700" height="320" fill="url(#skyGrad)"/>
 
-                  <!-- Ocean/water patches -->
                   <ellipse cx="620" cy="260" rx="110" ry="60" fill="rgba(100,160,220,.35)" opacity=".7"/>
                   <ellipse cx="80"  cy="280" rx="90"  ry="40" fill="rgba(100,160,220,.3)"  opacity=".6"/>
 
-                  <!-- Land masses (green blobs) -->
                   <ellipse cx="100" cy="170" rx="85" ry="55" fill="#a8c87a" opacity=".75"/>
                   <ellipse cx="200" cy="210" rx="70" ry="40" fill="#98ba6a" opacity=".7"/>
                   <ellipse cx="350" cy="155" rx="95" ry="60" fill="#b0cc82" opacity=".72"/>
@@ -293,7 +279,6 @@
                   <ellipse cx="160" cy="100" rx="60" ry="38" fill="#b4d086" opacity=".65"/>
                   <ellipse cx="450" cy="100" rx="55" ry="35" fill="#aac87e" opacity=".65"/>
 
-                  <!-- Grid lines (like a map) -->
                   <line x1="0" y1="80"  x2="700" y2="80"  stroke="rgba(100,140,100,.15)" stroke-width="1" stroke-dasharray="4 8"/>
                   <line x1="0" y1="160" x2="700" y2="160" stroke="rgba(100,140,100,.15)" stroke-width="1" stroke-dasharray="4 8"/>
                   <line x1="0" y1="240" x2="700" y2="240" stroke="rgba(100,140,100,.15)" stroke-width="1" stroke-dasharray="4 8"/>
@@ -301,32 +286,26 @@
                   <line x1="350" y1="0" x2="350" y2="320" stroke="rgba(100,140,100,.15)" stroke-width="1" stroke-dasharray="4 8"/>
                   <line x1="525" y1="0" x2="525" y2="320" stroke="rgba(100,140,100,.15)" stroke-width="1" stroke-dasharray="4 8"/>
 
-                  <!-- City dots scattered -->
                   <circle cx="100" cy="170" r="4" fill="#888" opacity=".5"/>
                   <circle cx="210" cy="200" r="3" fill="#888" opacity=".5"/>
                   <circle cx="320" cy="230" r="3" fill="#888" opacity=".4"/>
                   <circle cx="480" cy="195" r="4" fill="#888" opacity=".5"/>
                   <circle cx="600" cy="155" r="3" fill="#888" opacity=".4"/>
 
-                  <!-- Main road (the delivery route) -->
                   <path id="truck-road-path"
                         d="M 80,200 C 130,180 180,220 240,210 S 330,160 400,175 S 490,210 560,185 S 630,160 650,145"
                         class="road-path"/>
-                  <!-- Road center dashes -->
                   <path d="M 80,200 C 130,180 180,220 240,210 S 330,160 400,175 S 490,210 560,185 S 630,160 650,145"
                         class="road-path-dashed"/>
 
-                  <!-- Secondary roads -->
                   <path d="M 240,210 Q 260,270 300,280" stroke="#c8b89a" stroke-width="3" fill="none" opacity=".5"/>
                   <path d="M 400,175 Q 380,120 370,80"  stroke="#c8b89a" stroke-width="3" fill="none" opacity=".5"/>
                   <path d="M 560,185 Q 570,240 580,270"  stroke="#c8b89a" stroke-width="3" fill="none" opacity=".5"/>
 
-                  <!-- ORIGIN PIN -->
                   <g class="map-pin-origin">
                     <circle cx="80" cy="200" r="14" fill="var(--teal)" opacity=".9" filter="url(#shadow)"/>
                     <circle cx="80" cy="200" r="7"  fill="white"/>
                     <circle cx="80" cy="200" r="3"  fill="var(--teal)"/>
-                    <!-- pulse ring -->
                     <circle cx="80" cy="200" r="14" fill="none" stroke="var(--teal)" stroke-width="2" opacity=".4">
                       <animate attributeName="r" from="14" to="26" dur="2s" repeatCount="indefinite"/>
                       <animate attributeName="opacity" from="0.4" to="0" dur="2s" repeatCount="indefinite"/>
@@ -337,12 +316,10 @@
                     <tspan id="map-origin-label">Asal</tspan>
                   </text>
 
-                  <!-- DESTINATION PIN -->
                   <g class="map-pin-dest">
                     <circle cx="650" cy="145" r="14" fill="#e53e3e" opacity=".9" filter="url(#shadow)"/>
                     <circle cx="650" cy="145" r="7"  fill="white"/>
                     <circle cx="650" cy="145" r="3"  fill="#e53e3e"/>
-                    <!-- pulse ring -->
                     <circle cx="650" cy="145" r="14" fill="none" stroke="#e53e3e" stroke-width="2" opacity=".35">
                       <animate attributeName="r" from="14" to="26" dur="2.5s" repeatCount="indefinite"/>
                       <animate attributeName="opacity" from="0.35" to="0" dur="2.5s" repeatCount="indefinite"/>
@@ -353,45 +330,29 @@
                     <tspan id="map-dest-label">Tujuan</tspan>
                   </text>
 
-                  <!-- Company label near destination -->
                   <rect x="580" y="118" width="120" height="18" rx="4" fill="white" opacity=".85"/>
                   <text x="640" y="131" text-anchor="middle" font-size="9" fill="#666"
                         font-family="Plus Jakarta Sans, sans-serif" id="map-company-label">Perusahaan</text>
 
-                  <!-- TRUCK group (animated) — faces right, origin→destination -->
                   <g id="truck-icon-group" filter="url(#shadow)">
-                    <!-- Truck body -->
                     <rect x="0"  y="4"  width="36" height="20" rx="3" fill="#f59e0b"/>
-
-                    <!-- Cargo box stripes -->
                     <rect x="2"  y="7"  width="19" height="14" rx="1" fill="#fbbf24" opacity=".6"/>
                     <line x1="6"  y1="7" x2="6"  y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
                     <line x1="11" y1="7" x2="11" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
                     <line x1="16" y1="7" x2="16" y2="21" stroke="#e08800" stroke-width="1" opacity=".5"/>
-
-                    <!-- Cab section on RIGHT -->
                     <rect x="23" y="4" width="13" height="20" rx="2" fill="#e08800"/>
-
-                    <!-- Windshield -->
                     <rect x="26" y="6" width="9" height="9" rx="1" fill="rgba(200,235,255,.9)"/>
-
-                    <!-- Wheels -->
                     <circle cx="9"  cy="25" r="5" fill="#1a1a1a"/>
                     <circle cx="9"  cy="25" r="2.5" fill="#888"/>
                     <circle cx="28" cy="25" r="5" fill="#1a1a1a"/>
                     <circle cx="28" cy="25" r="2.5" fill="#888"/>
-
-                    <!-- Headlight on RIGHT -->
                     <rect x="33" y="10" width="3" height="4" rx="1" fill="#fffde0" opacity=".9"/>
-
-                    <!-- Status text / icon shown via JS -->
                     <text x="40" y="18" font-size="14" id="map-truck-icon"></text>
                   </g>
 
                 </svg>
               </div>
 
-              <!-- Map legend -->
               <div class="map-legend">
                 <div class="map-legend-item">
                   <div class="legend-dot origin"></div>
@@ -407,8 +368,8 @@
                 </div>
               </div>
 
-            </div><!-- /map-section -->
-          </div><!-- /t-result -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -429,8 +390,8 @@
                    placeholder="Cari ID, nama, tujuan, perusahaan, atau status..."
                    style="flex:1;max-width:400px"
                    oninput="renderTable()" />
-            <button class="btn btn-navy"
-              onclick="showTab('create',document.querySelectorAll('.section-tab')[0])">
+            <button class="btn btn-navy" id="list-create-btn"
+              onclick="activatePanel('create')">
               + Produk Baru
             </button>
           </div>
@@ -454,9 +415,48 @@
       </div>
     </div>
 
-  </div><!-- /panels -->
+    <!-- ── PANEL: ROLES ── -->
+    <div class="panel" id="panel-roles">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-icon">🛡️</div>
+          <div>
+            <div class="card-title">Pengaturan Role Wallet</div>
+            <div class="card-subtitle">Halaman ini hanya untuk admin untuk mengatur role tiap wallet</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="role-page-summary" class="cur-info-box" style="margin-bottom:18px;"></div>
+          <div class="form-grid">
+            <div class="form-group span2">
+              <label>Alamat Wallet</label>
+              <input id="role-wallet" type="text" placeholder="0x..." />
+              <span class="form-hint">masukkan wallet yang ingin diberi role</span>
+            </div>
+            <div class="form-group">
+              <label>Pilih Role</label>
+              <select id="role-select">
+                <option value="1">Admin</option>
+                <option value="2">Manufacturer</option>
+                <option value="3">Distributor</option>
+                <option value="0">None</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cek Role Wallet</label>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" type="button" onclick="checkWalletRole()">Cek Role</button>
+                <button class="btn btn-primary" type="button" onclick="setRoleFromUI()">Simpan Role</button>
+              </div>
+            </div>
+          </div>
+          <div id="role-result" class="cur-info-box" style="margin-top:18px;display:none"></div>
+        </div>
+      </div>
+    </div>
 
-  <!-- ── SIDEBAR ── -->
+  </div>
+
   <div class="sidebar">
 
     <div class="sidebar-card">
@@ -480,7 +480,6 @@
   </div>
 </div>
 
-<!-- ══ FOOTER ══ -->
 <footer>
   <div>
     <div class="footer-brand">Supply<span>Block</span></div>
