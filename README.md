@@ -189,26 +189,6 @@ Before running the project, make sure you have:
 
 This repository does not currently include a build pipeline, local blockchain setup, deployment script, or package manifest. The frontend is a static site, so the simplest way to run it is through a local static server.
 
-### Option 1: Open The Frontend Directly
-
-You can open:
-
-`frontend/index.html`
-
-in a browser. In some browsers, direct `file://` usage may be restrictive for wallet integrations, so a local server is usually more reliable.
-
-### Option 2: Serve The Frontend Locally
-
-From the project root, you can run a lightweight static server such as:
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open:
-
-`http://localhost:8000/frontend/`
-
 ## Usage Flow
 
 ### Admin Flow
@@ -262,39 +242,3 @@ This repository does not currently contain:
 - Deployment scripts
 - Automated tests
 - A package manifest such as `package.json`
-
-If you want to continue developing this project, the next practical improvement would be adding a proper Ethereum development toolchain so the contract can be compiled, tested, and redeployed from source in a repeatable way.
-
-## Limitations
-
-Current limitations of the project:
-
-- Contract address is hardcoded in the frontend
-- Network is fixed to Sepolia in the current UI logic
-- No automated smart contract tests are included
-- No deployment script or migration workflow is included
-- Frontend depends on MetaMask being available in the browser
-- Product reads are fetched one by one from chain, which may become slow as data grows
-
-## Suggested Future Improvements
-
-- Add Hardhat or Foundry for compilation, testing, and deployment
-- Move contract address and ABI loading into a configuration layer
-- Add event indexing or subgraph support for faster reads
-- Add transaction loading states and better error handling
-- Add search and pagination improvements for larger datasets
-- Add unit and integration tests for contract behavior
-- Add support for multiple environments and contract redeployments
-
-## Screens And Files To Start With
-
-If you are new to the codebase, these are the best entry points:
-
-- [contract/SupplyChain.sol](contract/SupplyChain.sol)
-- [frontend/index.html](frontend/index.html)
-- [frontend/js/app.js](frontend/js/app.js)
-- [frontend/css/style.css](frontend/css/style.css)
-
-## License
-
-No license file is currently included in this repository. If you plan to share or reuse this project publicly, consider adding a license such as MIT.
